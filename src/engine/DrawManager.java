@@ -229,19 +229,39 @@ public final class DrawManager {
 			backBufferGraphics.drawLine(j, 0, j, screen.getHeight() - 1);
 	}
 
+	/** Margin between the score text and the right edge of the screen. */
+	private static final int SCORE_ZONE_MARGIN = 8;
+	/** Horizontal gap between the "SCORE" label and the value. */
+	private static final int SCORE_LABEL_GAP = 8;
+
 	/**
-	 * Draws current score on screen.
-	 * 
+	 * Draws the current score in the top-right corner, arcade-style: no
+	 * border, just the "SCORE" label in white followed by the value in
+	 * green, right-aligned so it stays anchored to the same edge as the
+	 * digit count grows.
+	 *
 	 * @param screen
 	 *            Screen to draw on.
 	 * @param score
 	 *            Current score.
 	 */
 	public void drawScore(final Screen screen, final int score) {
+		int textY = 25;
+
 		backBufferGraphics.setFont(fontRegular);
+		String label = "SCORE";
+		String scoreString = Integer.toString(score);
+
+		int scoreWidth = fontRegularMetrics.stringWidth(scoreString);
+		int labelWidth = fontRegularMetrics.stringWidth(label);
+		int scoreX = screen.getWidth() - SCORE_ZONE_MARGIN - scoreWidth;
+		int labelX = scoreX - SCORE_LABEL_GAP - labelWidth;
+
 		backBufferGraphics.setColor(Color.WHITE);
-		String scoreString = String.format("%04d", score);
-		backBufferGraphics.drawString(scoreString, screen.getWidth() - 60, 25);
+		backBufferGraphics.drawString(label, labelX, textY);
+
+		backBufferGraphics.setColor(Color.GREEN);
+		backBufferGraphics.drawString(scoreString, scoreX, textY);
 	}
 
 	/**
