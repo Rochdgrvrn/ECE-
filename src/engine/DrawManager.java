@@ -245,6 +245,34 @@ public final class DrawManager {
 	}
 
 	/**
+	 * Draws the current wave/level number on screen, top-centre, so the
+	 * player can see it at a glance during play (not only in the
+	 * between-level countdown screen).
+	 *
+	 * @param screen
+	 *            Screen to draw on.
+	 * @param level
+	 *            Current game level.
+	 */
+	public void drawLevel(final Screen screen, final int level) {
+		String label = "LEVEL";
+		String valueString = Integer.toString(level);
+
+		backBufferGraphics.setFont(fontRegular);
+		int labelWidth = fontRegularMetrics.stringWidth(label);
+		int valueWidth = fontRegularMetrics.stringWidth(valueString);
+		int gap = 6;
+		int totalWidth = labelWidth + gap + valueWidth;
+		int labelX = (screen.getWidth() - totalWidth) / 2;
+		int valueX = labelX + labelWidth + gap;
+
+		backBufferGraphics.setColor(Color.WHITE);
+		backBufferGraphics.drawString(label, labelX, 25);
+		backBufferGraphics.setColor(Color.GREEN);
+		backBufferGraphics.drawString(valueString, valueX, 25);
+	}
+
+	/**
 	 * Draws number of remaining lives on screen.
 	 * 
 	 * @param screen
