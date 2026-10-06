@@ -14,6 +14,7 @@ import java.util.logging.Logger;
 
 import screen.MenuItem;
 import screen.Screen;
+import entity.Coin;
 import entity.Entity;
 import entity.Ship;
 
@@ -113,8 +114,12 @@ public final class DrawManager {
 
 		} catch (IOException e) {
 			logger.warning("Loading failed.");
+			fontRegular = new Font(Font.MONOSPACED, Font.PLAIN, 14);
+			fontBig = new Font(Font.MONOSPACED, Font.PLAIN, 24);
 		} catch (FontFormatException e) {
 			logger.warning("Font formating failed.");
+			fontRegular = new Font(Font.MONOSPACED, Font.PLAIN, 14);
+			fontBig = new Font(Font.MONOSPACED, Font.PLAIN, 24);
 		}
 	}
 
@@ -198,6 +203,105 @@ public final class DrawManager {
 	}
 
 	/**
+	 * Draws a dropped coin as a filled circle (GoG - Currency System).
+	 * Coins have no entry in the shared sprite file, so they are drawn
+	 * here instead of through drawEntity().
+	 *
+	 * @param coin
+	 *            Coin to be drawn.
+	 * @param positionX
+	 *            Coordinates for the left side of the coin.
+	 * @param positionY
+	 *            Coordinates for the upper side of the coin.
+	 */
+	public void drawCoin(final Coin coin, final int positionX,
+			final int positionY) {
+		backBufferGraphics.setColor(coin.getColor());
+		backBufferGraphics.fillOval(positionX, positionY, coin.getWidth(),
+				coin.getHeight());
+	}
+
+	/**
+	 * Draws a coin balance as a small coin icon followed by the amount,
+	 * centered along the top bar of the screen (GoG - Currency System).
+	 * Used by the in-game HUD and the shop.
+	 *
+	 * @param screen
+	 *            Screen to draw on.
+	 * @param coins
+	 *            Coin balance to display.
+	 */
+	public void drawCoinBalance(final Screen screen, final int coins) {
+		drawCoinBalance(screen, coins, 25);
+	}
+
+	/**
+	 * Draws a coin balance as a small coin icon followed by the amount,
+	 * centered horizontally at the given baseline (GoG - Currency System).
+	 *
+	 * @param screen
+	 *            Screen to draw on.
+	 * @param coins
+	 *            Coin balance to display.
+	 * @param positionY
+	 *            Baseline Y coordinate of the text.
+	 */
+	public void drawCoinBalance(final Screen screen, final int coins,
+			final int positionY) {
+		final int iconSize = 14;
+		final int iconTextGap = 6;
+
+		backBufferGraphics.setFont(fontRegular);
+		String balanceString = Integer.toString(coins);
+		int totalWidth = iconSize + iconTextGap
+				+ fontRegularMetrics.stringWidth(balanceString);
+		int startX = (screen.getWidth() - totalWidth) / 2;
+
+		backBufferGraphics.setColor(Color.YELLOW);
+		backBufferGraphics.fillOval(startX, positionY - iconSize + 1,
+				iconSize, iconSize);
+		backBufferGraphics.setColor(Color.WHITE);
+		backBufferGraphics.drawString(balanceString, startX + iconSize
+				+ iconTextGap, positionY);
+	}
+
+	/**
+	 * Draws a diamond balance as a small diamond icon followed by the
+	 * amount, centered horizontally at the given baseline, so it can be
+	 * stacked with the coin balance (GoG - Currency System).
+	 *
+	 * @param screen
+	 *            Screen to draw on.
+	 * @param diamonds
+	 *            Diamond balance to display.
+	 * @param positionY
+	 *            Baseline Y coordinate of the text.
+	 */
+	public void drawDiamondBalance(final Screen screen, final int diamonds,
+			final int positionY) {
+		final int iconSize = 14;
+		final int iconTextGap = 6;
+
+		backBufferGraphics.setFont(fontRegular);
+		String balanceString = Integer.toString(diamonds);
+		int totalWidth = iconSize + iconTextGap
+				+ fontRegularMetrics.stringWidth(balanceString);
+		int startX = (screen.getWidth() - totalWidth) / 2;
+		int iconTop = positionY - iconSize + 1;
+
+		int[] xPoints = { startX + iconSize / 2, startX + iconSize,
+				startX + iconSize / 2, startX };
+		int[] yPoints = { iconTop, iconTop + iconSize / 2,
+				iconTop + iconSize, iconTop + iconSize / 2 };
+
+		backBufferGraphics.setColor(Color.CYAN);
+		backBufferGraphics.fillPolygon(xPoints, yPoints, 4);
+		backBufferGraphics.setColor(Color.WHITE);
+		backBufferGraphics.drawString(balanceString, startX + iconSize
+				+ iconTextGap, positionY);
+	}
+
+	/**
 	 * For debugging purpouses, draws the canvas borders.
 	 * 
 	 * @param screen
@@ -259,6 +363,46 @@ public final class DrawManager {
 		Ship dummyShip = new Ship(0, 0);
 		for (int i = 0; i < lives; i++)
 			drawEntity(dummyShip, 40 + 35 * i, 10);
+	}
+
+	/**
+	 * Draws the in-game pause menu: a boxed panel over the frozen game,
+	 * same look as the exit confirmation, with a "PAUSED" title and a
+	 * vertical list of options. The selected option is green with a
+	 * leading cursor, like the main menu.
+	 *
+	 * @param screen
+	 *            Screen to draw on.
+	 * @param options
+	 *            Option labels, in the order they are listed.
+	 * @param selectedIndex
+	 *            Index of the option the cursor is on.
+	 */
+	public void drawPauseMenu(final Screen screen, final String[] options,
+			final int selectedIndex) {
+		String title = "PAUSED";
+
+		int spacing = menuItemSpacing();
+		int boxWidth = screen.getWidth() * 3 / 4;
+		int boxHeight = spacing * (options.length + 3);
+		int boxX = (screen.getWidth() - boxWidth) / 2;
+		int boxY = (screen.getHeight() - boxHeight) / 2;
+
+		backBufferGraphics.setColor(Color.BLACK);
+		backBufferGraphics.fillRect(boxX, boxY, boxWidth, boxHeight);
+		backBufferGraphics.setColor(Color.GREEN);
+		backBufferGraphics.drawRect(boxX, boxY, boxWidth, boxHeight);
+
+		backBufferGraphics.setColor(Color.GREEN);
+		drawCenteredBigString(screen, title, boxY + spacing * 3 / 2);
+
+		for (int i = 0; i < options.length; i++) {
+			boolean selected = i == selectedIndex;
+			String line = (selected ? "> " : " ") + options[i];
+			backBufferGraphics.setColor(selected ? Color.GREEN : Color.WHITE);
+			drawCenteredRegularString(screen, line,
+					boxY + spacing * (i + 3));
+		}
 	}
 
 	/**
@@ -419,43 +563,28 @@ public final class DrawManager {
 	}
 
 	/**
-	 * Draws the in-game pause menu: a boxed panel over the frozen game,
-	 * same look as the exit confirmation, with a "PAUSED" title and a
-	 * vertical list of options. The selected option is green with a
-	 * leading cursor, like the main menu.
+	 * Draws an achievement-unlocked popup over the game.
 	 *
-	 * @param screen
-	 *            Screen to draw on.
-	 * @param options
-	 *            Option labels, in the order they are listed.
-	 * @param selectedIndex
-	 *            Index of the option the cursor is on.
+	 * @param screen Screen where the popup is drawn.
+	 * @param achievement Newly unlocked achievement.
 	 */
-	public void drawPauseMenu(final Screen screen, final String[] options,
-			final int selectedIndex) {
-		String title = "PAUSED";
-
-		int spacing = menuItemSpacing();
-		int boxWidth = screen.getWidth() * 3 / 4;
-		int boxHeight = spacing * (options.length + 3);
+	public void drawAchievementUnlocked(final Screen screen,
+			final Achievement achievement) {
+		int boxWidth = screen.getWidth() / 2;
+		int boxHeight = fontRegularMetrics.getHeight() * 3;
 		int boxX = (screen.getWidth() - boxWidth) / 2;
-		int boxY = (screen.getHeight() - boxHeight) / 2;
+		int boxY = screen.getHeight() - boxHeight
+				- fontRegularMetrics.getHeight();
 
 		backBufferGraphics.setColor(Color.BLACK);
 		backBufferGraphics.fillRect(boxX, boxY, boxWidth, boxHeight);
 		backBufferGraphics.setColor(Color.GREEN);
 		backBufferGraphics.drawRect(boxX, boxY, boxWidth, boxHeight);
-
-		backBufferGraphics.setColor(Color.GREEN);
-		drawCenteredBigString(screen, title, boxY + spacing * 3 / 2);
-
-		for (int i = 0; i < options.length; i++) {
-			boolean selected = i == selectedIndex;
-			String line = (selected ? "> " : "   ") + options[i];
-			backBufferGraphics.setColor(selected ? Color.GREEN : Color.WHITE);
-			drawCenteredRegularString(screen, line,
-					boxY + spacing * (i + 3));
-		}
+		drawCenteredRegularString(screen, "Achievement unlocked!", boxY
+				+ fontRegularMetrics.getHeight() * 3 / 2);
+		backBufferGraphics.setColor(Color.WHITE);
+		drawCenteredRegularString(screen, achievement.getName(), boxY
+				+ fontRegularMetrics.getHeight() * 5 / 2);
 	}
 
 	/**
@@ -704,5 +833,50 @@ public final class DrawManager {
 		else
 			drawCenteredBigString(screen, "GO!", screen.getHeight() / 2
 					+ fontBigMetrics.getHeight() / 3);
+	}
+
+	/**
+	 * Draws a centered row of text in the menu colours: green when
+	 * selected, white otherwise.
+	 *
+	 * @param screen
+	 *            Screen to draw on.
+	 * @param string
+	 *            Text to draw.
+	 * @param height
+	 *            Height of the drawing.
+	 * @param selected
+	 *            Whether the row is currently selected.
+	 */
+	public void drawMenuRow(final Screen screen, final String string,
+			final int height, final boolean selected) {
+		drawMenuRow(screen, string, height, selected, true);
+	}
+
+	/**
+	 * Draws a centered row of text in the menu colours: green when
+	 * selected, dark grey when disabled, white otherwise.
+	 *
+	 * @param screen
+	 *            Screen to draw on.
+	 * @param string
+	 *            Text to draw.
+	 * @param height
+	 *            Height of the drawing.
+	 * @param selected
+	 *            Whether the row is currently selected.
+	 * @param enabled
+	 *            Whether the row can be chosen.
+	 */
+	public void drawMenuRow(final Screen screen, final String string,
+			final int height, final boolean selected,
+			final boolean enabled) {
+		if (selected)
+			backBufferGraphics.setColor(Color.GREEN);
+		else if (!enabled)
+			backBufferGraphics.setColor(Color.DARK_GRAY);
+		else
+			backBufferGraphics.setColor(Color.WHITE);
+		drawCenteredRegularString(screen, string, height);
 	}
 }
