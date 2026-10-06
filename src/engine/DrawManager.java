@@ -365,6 +365,38 @@ public final class DrawManager {
 			drawEntity(dummyShip, 40 + 35 * i, 10);
 	}
 
+	/** Baseline Y of the top-centre level indicator, kept off y=25 so it
+	 * doesn't collide with the Currency team's coin balance, which is
+	 * also centred there. */
+	private static final int LEVEL_INDICATOR_Y = 14;
+
+	/**
+	 * Draws the current wave/level number on screen, top-centre, so the
+	 * player can see it at a glance during play.
+	 *
+	 * @param screen
+	 *            Screen to draw on.
+	 * @param level
+	 *            Current game level.
+	 */
+	public void drawLevel(final Screen screen, final int level) {
+		String label = "LEVEL";
+		String valueString = Integer.toString(level);
+
+		backBufferGraphics.setFont(fontRegular);
+		int labelWidth = fontRegularMetrics.stringWidth(label);
+		int valueWidth = fontRegularMetrics.stringWidth(valueString);
+		int gap = 6;
+		int totalWidth = labelWidth + gap + valueWidth;
+		int labelX = (screen.getWidth() - totalWidth) / 2;
+		int valueX = labelX + labelWidth + gap;
+
+		backBufferGraphics.setColor(Color.WHITE);
+		backBufferGraphics.drawString(label, labelX, LEVEL_INDICATOR_Y);
+		backBufferGraphics.setColor(Color.GREEN);
+		backBufferGraphics.drawString(valueString, valueX, LEVEL_INDICATOR_Y);
+	}
+
 	/**
 	 * Draws a thick line from side to side of the screen.
 	 * 

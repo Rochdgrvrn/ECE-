@@ -273,8 +273,13 @@ public class GameScreen extends Screen {
 		// Interface.
 		drawManager.drawScore(this, this.score);
 		drawManager.drawLives(this, this.lives);
+		drawManager.drawLevel(this, this.level);
+		// Explicit Y (36, not the 25 default): the level indicator now
+		// sits centred at y=14, and the coin icon is tall enough that at
+		// y=25 it climbs into the level text above it. Dropping it to its
+		// own row below clears both.
 		drawManager.drawCoinBalance(this, CurrencyManager.getInstance()
-				.getCoins());
+				.getCoins(), 36);
 		drawManager.drawHorizontalLine(this, SEPARATION_LINE_HEIGHT - 1);
 		if (this.unlockedAchievement != null) {
 			drawManager.drawAchievementUnlocked(this, this.unlockedAchievement);
