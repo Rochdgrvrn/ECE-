@@ -356,13 +356,20 @@ public final class DrawManager {
 	 * @param lives
 	 *            Current lives.
 	 */
+	/** Horizontal space reserved for the "LIVES" label. */
+	private static final int LIVES_LABEL_WIDTH = 46;
+	/** Horizontal space reserved per life icon. */
+	private static final int LIVES_ICON_SPACING = 35;
+
 	public void drawLives(final Screen screen, final int lives) {
 		backBufferGraphics.setFont(fontRegular);
 		backBufferGraphics.setColor(Color.WHITE);
-		backBufferGraphics.drawString(Integer.toString(lives), 20, 25);
+		backBufferGraphics.drawString("LIVES", 20, 25);
+
 		Ship dummyShip = new Ship(0, 0);
 		for (int i = 0; i < lives; i++)
-			drawEntity(dummyShip, 40 + 35 * i, 10);
+			drawEntity(dummyShip, 20 + LIVES_LABEL_WIDTH
+					+ LIVES_ICON_SPACING * i, 10);
 	}
 
 	/**
