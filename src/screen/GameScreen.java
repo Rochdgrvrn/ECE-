@@ -274,7 +274,9 @@ public class GameScreen extends Screen {
 		drawManager.drawScore(this, this.score);
 		drawManager.drawLives(this, this.lives);
 		drawManager.drawCoinBalance(this, CurrencyManager.getInstance()
-				.getCoins());
+				.getCoins(), 36);
+		drawManager.drawDiamonds(this, engine.DiamondManager.getInstance()
+				.getDiamonds());
 		drawManager.drawHorizontalLine(this, SEPARATION_LINE_HEIGHT - 1);
 		if (this.unlockedAchievement != null) {
 			drawManager.drawAchievementUnlocked(this, this.unlockedAchievement);
