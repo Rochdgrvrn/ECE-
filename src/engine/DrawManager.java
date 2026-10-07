@@ -404,6 +404,46 @@ public final class DrawManager {
 	}
 
 	/**
+	 * Draws the in-game pause menu: a boxed panel over the frozen game,
+	 * same look as the exit confirmation, with a "PAUSED" title and a
+	 * vertical list of options. The selected option is green with a
+	 * leading cursor, like the main menu.
+	 *
+	 * @param screen
+	 *            Screen to draw on.
+	 * @param options
+	 *            Option labels, in the order they are listed.
+	 * @param selectedIndex
+	 *            Index of the option the cursor is on.
+	 */
+	public void drawPauseMenu(final Screen screen, final String[] options,
+			final int selectedIndex) {
+		String title = "PAUSED";
+
+		int spacing = menuItemSpacing();
+		int boxWidth = screen.getWidth() * 3 / 4;
+		int boxHeight = spacing * (options.length + 3);
+		int boxX = (screen.getWidth() - boxWidth) / 2;
+		int boxY = (screen.getHeight() - boxHeight) / 2;
+
+		backBufferGraphics.setColor(Color.BLACK);
+		backBufferGraphics.fillRect(boxX, boxY, boxWidth, boxHeight);
+		backBufferGraphics.setColor(Color.GREEN);
+		backBufferGraphics.drawRect(boxX, boxY, boxWidth, boxHeight);
+
+		backBufferGraphics.setColor(Color.GREEN);
+		drawCenteredBigString(screen, title, boxY + spacing * 3 / 2);
+
+		for (int i = 0; i < options.length; i++) {
+			boolean selected = i == selectedIndex;
+			String line = (selected ? "> " : " ") + options[i];
+			backBufferGraphics.setColor(selected ? Color.GREEN : Color.WHITE);
+			drawCenteredRegularString(screen, line,
+					boxY + spacing * (i + 3));
+		}
+	}
+
+	/**
 	 * Draws a thick line from side to side of the screen.
 	 * 
 	 * @param screen

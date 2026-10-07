@@ -48,6 +48,52 @@ public class GameScreen extends Screen {
 	private static final int COIN_VALUE = 1;
 	/** Coins guaranteed when the special bonus ship is destroyed. */
 	private static final int BONUS_COIN_VALUE = 5;
+	/** Minimum time between two pause-key toggles, to debounce the key. */
+	private static final int PAUSE_KEY_DEBOUNCE = 200;
+	/** Minimum time between two pause-menu cursor moves. */
+	private static final int PAUSE_SELECTION_DEBOUNCE = 200;
+
+	/**
+	 * Options listed in the pause menu, in the order they are drawn.
+	 */
+	private enum PauseOption {
+		/** Closes the pause menu and continues the level. */
+		RESUME("Resume"),
+		/** Restarts the current level from the beginning. */
+		RESTART("Restart"),
+		/** Ends the run and returns to the score / main menu flow. */
+		QUIT("Quit to menu");
+
+		/** Text drawn for this option. */
+		private final String label;
+
+		PauseOption(final String label) {
+			this.label = label;
+		}
+
+		/**
+		 * @return Text drawn for this option.
+		 */
+		private String getLabel() {
+			return this.label;
+		}
+
+		/**
+		 * @return Option below this one, wrapping around to the top.
+		 */
+		private PauseOption next() {
+			PauseOption[] values = values();
+			return values[(this.ordinal() + 1) % values.length];
+		}
+
+		/**
+		 * @return Option above this one, wrapping around to the bottom.
+		 */
+		private PauseOption previous() {
+			PauseOption[] values = values();
+			return values[(this.ordinal() - 1 + values.length) % values.length];
+		}
+	}
 
 	/** Current game difficulty settings. */
 	private GameSettings gameSettings;
@@ -93,6 +139,26 @@ public class GameScreen extends Screen {
 	/** Diamonds earned this run but not yet cashed out; lost on death,
 	 * banked into DiamondManager only when the player cashes out. */
 	private int pendingDiamonds;
+	/** Whether gameplay is currently paused. */
+	private boolean paused;
+	/** Debounces the pause key so holding it doesn't toggle every frame. */
+	private Cooldown pauseKeyCooldown;
+	/** Debounces cursor moves in the pause menu. */
+	private Cooldown pauseSelectionCooldown;
+	/** Option the cursor is on in the pause menu. */
+	private PauseOption pauseSelection;
+	/** Score the level started with, restored by "Restart". */
+	private final int initialScore;
+	/** Lives the level started with (bonus life included), restored by
+	 * "Restart". */
+	private final int initialLives;
+	/** Bullets-shot count the level started with, restored by "Restart". */
+	private final int initialBulletsShot;
+	/** Ships-destroyed count the level started with, restored by
+	 * "Restart". */
+	private final int initialShipsDestroyed;
+	/** Pending diamonds the level started with, restored by "Restart". */
+	private final int initialPendingDiamonds;
 
 	/**
 	 * Constructor, establishes the properties of the screen.
@@ -125,6 +191,14 @@ public class GameScreen extends Screen {
 		this.bulletsShot = gameState.getBulletsShot();
 		this.shipsDestroyed = gameState.getShipsDestroyed();
 		this.pendingDiamonds = gameState.getPendingDiamonds();
+
+		// Snapshot of how the level started, so "Restart" has something to
+		// come back to.
+		this.initialScore = this.score;
+		this.initialLives = this.lives;
+		this.initialBulletsShot = this.bulletsShot;
+		this.initialShipsDestroyed = this.shipsDestroyed;
+		this.initialPendingDiamonds = this.pendingDiamonds;
 	}
 
 	/**
@@ -148,6 +222,9 @@ public class GameScreen extends Screen {
 		this.bullets = new HashSet<Bullet>();
 		this.coins = new HashSet<Coin>();
 		this.coinDropManager = new CoinDropManager();
+		this.pauseKeyCooldown = Core.getCooldown(PAUSE_KEY_DEBOUNCE);
+		this.pauseSelectionCooldown = Core.getCooldown(PAUSE_SELECTION_DEBOUNCE);
+		this.pauseSelection = PauseOption.RESUME;
 
 		// Special input delay / countdown.
 		this.gameStartTime = System.currentTimeMillis();
@@ -174,6 +251,20 @@ public class GameScreen extends Screen {
 	 */
 	protected final void update() {
 		super.update();
+
+		if (inputManager.isKeyDown(KeyEvent.VK_P)
+				&& this.pauseKeyCooldown.checkFinished()) {
+			this.paused = !this.paused;
+			this.pauseKeyCooldown.reset();
+			this.pauseSelection = PauseOption.RESUME;
+			this.logger.info(this.paused ? "Game paused" : "Game resumed");
+		}
+
+		if (this.paused) {
+			updatePauseMenu();
+			draw();
+			return;
+		}
 
 		if (this.inputDelay.checkFinished() && !this.levelFinished) {
 
@@ -248,27 +339,93 @@ public class GameScreen extends Screen {
 	}
 
 	/**
+	 * Handles cursor movement and selection while the pause menu is open.
+	 */
+	private void updatePauseMenu() {
+		if (!this.pauseSelectionCooldown.checkFinished())
+			return;
+
+		if (inputManager.isKeyDown(KeyEvent.VK_UP)
+				|| inputManager.isKeyDown(KeyEvent.VK_W)) {
+			this.pauseSelection = this.pauseSelection.previous();
+			this.pauseSelectionCooldown.reset();
+		} else if (inputManager.isKeyDown(KeyEvent.VK_DOWN)
+				|| inputManager.isKeyDown(KeyEvent.VK_S)) {
+			this.pauseSelection = this.pauseSelection.next();
+			this.pauseSelectionCooldown.reset();
+		} else if (inputManager.isKeyDown(KeyEvent.VK_SPACE)) {
+			this.pauseSelectionCooldown.reset();
+			confirmPauseSelection();
+		}
+	}
+
+	/**
+	 * Carries out whichever pause menu option the cursor was on.
+	 */
+	private void confirmPauseSelection() {
+		switch (this.pauseSelection) {
+			case RESUME:
+				this.paused = false;
+				break;
+			case RESTART:
+				restartLevel();
+				break;
+			case QUIT:
+				// No dedicated "abandon" path exists in the screen flow,
+				// but ending the run the same way running out of lives
+				// does takes us straight to the existing score screen,
+				// which already offers "back to menu" / "play again".
+				this.lives = 0;
+				this.paused = false;
+				break;
+			default:
+				break;
+		}
+	}
+
+	/**
+	 * Restarts the current level: score, lives, bullets shot, ships
+	 * destroyed and pending diamonds go back to what they were when the
+	 * level began, and every on-screen element is rebuilt from scratch.
+	 */
+	private void restartLevel() {
+		this.score = this.initialScore;
+		this.lives = this.initialLives;
+		this.bulletsShot = this.initialBulletsShot;
+		this.shipsDestroyed = this.initialShipsDestroyed;
+		this.pendingDiamonds = this.initialPendingDiamonds;
+		this.levelFinished = false;
+		initialize();
+		this.paused = false;
+	}
+
+	/**
 	 * Draws the elements associated with the screen.
 	 */
 	private void draw() {
 		drawManager.initDrawing(this);
 
-		drawManager.drawEntity(this.ship, this.ship.getPositionX(),
-				this.ship.getPositionY());
-		if (this.enemyShipSpecial != null)
-			drawManager.drawEntity(this.enemyShipSpecial,
-					this.enemyShipSpecial.getPositionX(),
-					this.enemyShipSpecial.getPositionY());
+		if (!this.paused) {
+			// Ship, enemies, bullets and falling coins are hidden while
+			// paused, so the pause menu isn't cluttered by the frozen
+			// battlefield behind it - only the top HUD stays visible.
+			drawManager.drawEntity(this.ship, this.ship.getPositionX(),
+					this.ship.getPositionY());
+			if (this.enemyShipSpecial != null)
+				drawManager.drawEntity(this.enemyShipSpecial,
+						this.enemyShipSpecial.getPositionX(),
+						this.enemyShipSpecial.getPositionY());
 
-		enemyShipFormation.draw();
+			enemyShipFormation.draw();
 
-		for (Bullet bullet : this.bullets)
-			drawManager.drawEntity(bullet, bullet.getPositionX(),
-					bullet.getPositionY());
+			for (Bullet bullet : this.bullets)
+				drawManager.drawEntity(bullet, bullet.getPositionX(),
+						bullet.getPositionY());
 
-		for (Coin coin : this.coins)
-			drawManager.drawCoin(coin, coin.getPositionX(),
-					coin.getPositionY());
+			for (Coin coin : this.coins)
+				drawManager.drawCoin(coin, coin.getPositionX(),
+						coin.getPositionY());
+		}
 
 		// Interface.
 		drawManager.drawScore(this, this.score);
@@ -284,8 +441,19 @@ public class GameScreen extends Screen {
 				this.unlockedAchievement = null;
 		}
 
-		// Countdown to game start.
-		if (!this.inputDelay.checkFinished()) {
+		if (this.paused) {
+			String[] options = { PauseOption.RESUME.getLabel(),
+					PauseOption.RESTART.getLabel(),
+					PauseOption.QUIT.getLabel() };
+			drawManager.drawPauseMenu(this, options,
+					this.pauseSelection.ordinal());
+			drawManager.drawKeyHints(this,
+					"w+s / arrows to move, space to select");
+		}
+
+		// Countdown to game start (skipped while paused, so the pause menu
+		// stays visible instead of being painted over).
+		if (!this.paused && !this.inputDelay.checkFinished()) {
 			int countdown = (int) ((INPUT_DELAY
 					- (System.currentTimeMillis()
 							- this.gameStartTime)) / 1000);
